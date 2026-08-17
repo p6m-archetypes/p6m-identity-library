@@ -6,7 +6,7 @@ prova = ">= 0.16"
 # jobs = 1: every proof renders the probe archetype, and concurrent renders collide on archetect's
 # shared git cache — the same reason the archetype suites run serial.
 [run]
-proofs = ["tests"]
+proofs = ["proofs"]
 jobs = 1
 
 # CI runs the same suite. This is a prompt library: it renders a probe and reads YAML, so a runner

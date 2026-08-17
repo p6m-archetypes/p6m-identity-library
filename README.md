@@ -69,10 +69,10 @@ p6m-specific derivation in the fleet, proven here and nowhere else.
 Consequently this repo depends on no plugin: cross-checking against `p6m.identity` would recreate
 the second implementation the design removes.
 
-## Testing a library that renders nothing
+## Proving a library that renders nothing
 
 A prompt library produces no files, so there is nothing to observe black-box — which is why none
-of the fleet's libraries has ever had a suite. `tests/fixtures/probe` is a throwaway archetype
+of the fleet's libraries has ever had a suite. `proofs/fixtures/probe` is a throwaway archetype
 that composes this library and renders every derived key to one YAML file; the suite renders the
 probe and reads that. The contract is held on rendered output rather than by reaching into the
 module, and the pattern generalizes to any prompt library.
