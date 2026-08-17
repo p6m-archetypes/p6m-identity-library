@@ -1,0 +1,12 @@
+---
+description: "p6m Identity — the p6m service identity prompt surface"
+summary: >
+  THE single implementation of the identity surface every p6m service archetype asks for:
+  project_name, solution_name, and a defaulted entity_name. Replaces the author x org x project
+  prompt-library composition. Deliberately asks for no author identity, no org x solution split,
+  and no prefix x suffix decomposition — see prova-p6m-standards docs/standards.md S1.
+authors: ["Jimmie Fulton <jimmie@ybor.ai>"]
+tags: ["library", "prompts", "identity", "p6m"]
+
+requires:
+  archetect: "3.0.0"

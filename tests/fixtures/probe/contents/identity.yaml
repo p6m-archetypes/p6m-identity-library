@@ -1,0 +1,29 @@
+project-name:   "{{ project-name }}"
+project_name:   "{{ project_name }}"
+ProjectName:    "{{ ProjectName }}"
+projectName:    "{{ projectName }}"
+PROJECT_NAME:   "{{ PROJECT_NAME }}"
+project_title:  "{{ project_title }}"
+
+solution-name:  "{{ solution-name }}"
+solution_title: "{{ solution_title }}"
+
+entity-name:    "{{ entity-name }}"
+entity_name:    "{{ entity_name }}"
+EntityName:     "{{ EntityName }}"
+entityName:     "{{ entityName }}"
+entity_title:   "{{ entity_title }}"
+
+repo_name:      "{{ repo_name }}"
+github_owner:   "{{ github_owner }}"
+
+# The transitional alias (YP6M-3424) — retire with the line in lib/init.lua that sets it.
+org-solution-name: "{{ org-solution-name }}"
+
+# The API surface standards S2 derives from this identity. Rendered here so the suite reads the
+# names the archetypes' templates will actually produce, not a Lua reconstruction of them.
+rest_collection: "/api/v1/{{ entity-name }}s"
+grpc_service:    "{{ ProjectName }}"
+grpc_rpc:        "Create{{ EntityName }}"
+graphql_type:    "{{ EntityName }}"
+graphql_query:   "{{ entityName }}"

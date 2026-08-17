@@ -1,0 +1,21 @@
+[requires]
+prova = ">= 0.16"
+
+# `prova` from the repo root runs the whole suite.
+#
+# jobs = 1: every proof renders the probe archetype, and concurrent renders collide on archetect's
+# shared git cache — the same reason the archetype suites run serial.
+[run]
+proofs = ["tests"]
+jobs = 1
+
+# CI runs the same suite. This is a prompt library: it renders a probe and reads YAML, so a runner
+# needs no language toolchain and no docker (standards E7's discipline, applied to a library).
+[profiles.ci]
+jobs = 1
+format = "json"
+
+# No `[dependencies]` on purpose. The obvious move — depend on the `p6m` plugin and cross-check
+# this library's derivation against `p6m.identity` — is exactly the drift this repo exists to
+# prevent: the oracle TAKES `project` and `entity` as explicit inputs and re-derives nothing, so
+# there is no second implementation to agree with. One rule, one home.

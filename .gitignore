@@ -1,0 +1,6 @@
+.DS_Store
+# Generated LuaLS IDE artifacts — prova regenerates these on every run.
+/.luarc.json
+/annotations/
+# prova's per-run state; never tracked (S9).
+/.prova/

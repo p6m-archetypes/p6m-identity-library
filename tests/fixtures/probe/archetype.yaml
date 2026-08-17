@@ -1,0 +1,17 @@
+---
+description: "identity probe — renders the derived identity keys so the suite can read them"
+summary: >
+  A prompt library renders no files, which is why none of the fleet's libraries has ever had a
+  suite: there is nothing black-box to observe. This probe composes the library under test and
+  writes every derived key to one YAML file, so the library's contract is held on rendered output
+  rather than by reaching into its internals.
+
+requires:
+  archetect: "3.0.0"
+
+catalog:
+  p6m-identity:
+    # Relative local source — resolves against THIS manifest's directory, not the cwd.
+    source: "../../.."
+    library: true
+    show: false

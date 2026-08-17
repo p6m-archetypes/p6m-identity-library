@@ -1,0 +1,21 @@
+name: Acceptance
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # No language toolchain step and no docker: this library renders a probe archetype and reads
+      # the YAML it produced. prova's in-process archetect engine is all it needs.
+      - uses: prova-rs/run-action@v1
+        with:
+          # No `version:` on purpose — run-action@v1 carries the current default and is bumped with
+          # each prova release, so tracking the tag keeps this suite on the engine the fleet runs.
+          # A local pin silently freezes it while looking up to date.
+          profile: ci
