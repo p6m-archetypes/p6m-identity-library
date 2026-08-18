@@ -100,12 +100,31 @@ function M.prompt(context, opts)
     })
 
     if opts.entity ~= false then
+        -- OPTIONAL with no default, and the derivation runs AFTER — deliberately.
+        --
+        -- A prompt's envelope must be a pure function of the archetype, never of an answer. A
+        -- `default` computed from `project_name` is not a default at all: it cannot be known until
+        -- that prompt is answered, so an interface probe resolves it against whatever placeholder
+        -- the probe fed and ships that to every client. Studio was being handed
+        -- `entity_name = "probe"` as a pre-filled form value.
+        --
+        -- So the rule is asked plainly and derived plainly: blank means "use the derivation", and
+        -- the help says what the derivation is rather than guessing a value on the user's behalf.
         context:prompt_text("Entity Name:", "entity_name", {
-            cases   = { Cases.programming(), Cases.fixed("entity_title", Case.Title) },
-            default = M.entity_default(context:get("project-name")),
-            help    = "The sample CRUD entity the generated API exposes. Defaults to the project "
-                .. "name with any trailing type qualifier removed.",
+            cases       = { Cases.programming(), Cases.fixed("entity_title", Case.Title) },
+            optional    = true,
+            placeholder = "billing",
+            help        = "The sample CRUD entity the generated API exposes. Leave blank to use "
+                .. "the project name with any trailing type qualifier (service, gateway, "
+                .. "adapter, router, …) removed.",
         })
+
+        local answered = context:get("entity-name")
+        if answered == nil or answered == "" then
+            context:set("entity_name", M.entity_default(context:get("project-name")), {
+                cases = { Cases.programming(), Cases.fixed("entity_title", Case.Title) },
+            })
+        end
     end
 
     -- Addressing for the optional SCM publish step. Derived, never asked: an archetype that has
