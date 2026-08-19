@@ -83,8 +83,15 @@ end
 function M.prompt_project(context, opts)
     opts = opts or {}
 
+    -- A pattern, because an EMPTY answer otherwise satisfies a required prompt and renders
+    -- structural garbage in silence: `-a project_name=` produced modules named `-core` and
+    -- `-server` and an empty <artifactId>, at the destination root, with no error (measured
+    -- against archetect 3.5.0). Deliberately shape-TOLERANT rather than strict kebab —
+    -- Cases.programming() exists to accept "Billing Service", "BillingService" or
+    -- "billing_service" and normalize them; the pattern only refuses what cannot be a name.
     context:prompt_text("Project Name:", "project_name", {
         cases       = { Cases.programming(), Cases.fixed("project_title", Case.Title) },
+        pattern     = "^[A-Za-z][A-Za-z0-9 _-]*$",
         placeholder = "billing-service",
         help        = "Kebab-case. The repository and project directory, the container image, "
             .. "the PlatformApplication name, and the directory CD writes into in the platform "
@@ -102,6 +109,10 @@ function M.prompt_project(context, opts)
         context:prompt_text("Entity Name:", "entity_name", {
             cases       = { Cases.programming(), Cases.fixed("entity_title", Case.Title) },
             optional    = true,
+            -- `^$` is load-bearing: blank means "use the derivation", and a hybrid client sends
+            -- an empty string for a field the user tabbed past. A pattern without it would reject
+            -- exactly the case the help text invites.
+            pattern     = "^$|^[A-Za-z][A-Za-z0-9 _-]*$",
             placeholder = "billing",
             help        = "The sample CRUD entity the generated API exposes. Leave blank to use "
                 .. "the project name with any trailing type qualifier (service, gateway, "
@@ -126,6 +137,7 @@ end
 function M.prompt_solution(context)
     context:prompt_text("Solution Slug:", "solution_name", {
         cases       = { Cases.programming(), Cases.fixed("solution_title", Case.Title) },
+        pattern     = "^[A-Za-z][A-Za-z0-9 _-]*$",
         placeholder = "acme-payments",
         help        = "Kebab-case. Prefixes the Kubernetes namespace: {solution}-{application}-{env}.",
     })
