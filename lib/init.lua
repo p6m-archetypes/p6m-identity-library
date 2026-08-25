@@ -74,19 +74,70 @@ end
 --- generate no domain code — the platform overlay, and the basic service whose only route is a
 --- stub identity endpoint — so a prompt whose answer nothing reads cannot survive (standards E2).
 ---@param opts { entity: boolean? }?
-function M.prompt(context, opts)
+--- The project's own names: what it is called and what its sample entity is called.
+---
+--- Split from the solution slug so a caller can place them separately — the project names are
+--- the user's to invent, while the solution slug is a deployment coordinate a wizard may supply
+--- and hide. Same prompts either way; `prompt` composes all of them.
+---@param opts { entity: boolean? }?
+function M.prompt_project(context, opts)
     opts = opts or {}
 
+    -- A pattern, because an EMPTY answer otherwise satisfies a required prompt and renders
+    -- structural garbage in silence: `-a project_name=` produced modules named `-core` and
+    -- `-server` and an empty <artifactId>, at the destination root, with no error (measured
+    -- against archetect 3.5.0). Deliberately shape-TOLERANT rather than strict kebab —
+    -- Cases.programming() exists to accept "Billing Service", "BillingService" or
+    -- "billing_service" and normalize them; the pattern only refuses what cannot be a name.
     context:prompt_text("Project Name:", "project_name", {
         cases       = { Cases.programming(), Cases.fixed("project_title", Case.Title) },
+        pattern     = "^[A-Za-z][A-Za-z0-9 _-]*$",
         placeholder = "billing-service",
         help        = "Kebab-case. The repository and project directory, the container image, "
             .. "the PlatformApplication name, and the directory CD writes into in the platform "
             .. "manifests repo.",
     })
 
+    if opts.entity ~= false then
+        -- OPTIONAL with no default, and the derivation runs AFTER — deliberately.
+        --
+        -- An envelope computed from `project_name` cannot be known until that prompt is answered,
+        -- so an interface probe resolves it against whatever placeholder the probe fed and ships
+        -- that to every client. Studio was being handed `entity_name = "probe"` as a pre-filled
+        -- form value. Blank means "use the derivation", and the help says what the derivation is
+        -- rather than guessing a value on the user's behalf.
+        context:prompt_text("Entity Name:", "entity_name", {
+            cases       = { Cases.programming(), Cases.fixed("entity_title", Case.Title) },
+            optional    = true,
+            -- `^$` is load-bearing: blank means "use the derivation", and a hybrid client sends
+            -- an empty string for a field the user tabbed past. A pattern without it would reject
+            -- exactly the case the help text invites.
+            pattern     = "^$|^[A-Za-z][A-Za-z0-9 _-]*$",
+            placeholder = "billing",
+            help        = "The sample CRUD entity the generated API exposes. Leave blank to use "
+                .. "the project name with any trailing type qualifier (service, gateway, "
+                .. "adapter, router, …) removed.",
+        })
+
+        local answered = context:get("entity-name")
+        if answered == nil or answered == "" then
+            context:set("entity_name", M.entity_default(context:get("project-name")), {
+                cases = { Cases.programming(), Cases.fixed("entity_title", Case.Title) },
+            })
+        end
+    end
+
+    -- Derived, never asked: an archetype told the project name knows its repository name.
+    context:set("repo_name", context:get("project-name"))
+    return context
+end
+
+--- The solution slug — a deployment coordinate, not a name the user invents. Split out so a
+--- caller can place it with the other platform facts a wizard may supply and hide.
+function M.prompt_solution(context)
     context:prompt_text("Solution Slug:", "solution_name", {
         cases       = { Cases.programming(), Cases.fixed("solution_title", Case.Title) },
+        pattern     = "^[A-Za-z][A-Za-z0-9 _-]*$",
         placeholder = "acme-payments",
         help        = "Kebab-case. Prefixes the Kubernetes namespace: {solution}-{application}-{env}.",
     })
@@ -95,24 +146,18 @@ function M.prompt(context, opts)
     -- library and the six overlay archetypes read today, and the name describes a decomposition
     -- this library removes. Retire it — and this line — once those consumers are converted to
     -- `solution_name`; nothing else in the fleet reads it.
-    context:set("org_solution_name", context:get("solution-name"), {
-        cases = Cases.programming(),
-    })
+    context:set("org_solution_name", context:get("solution-name"), { cases = Cases.programming() })
 
-    if opts.entity ~= false then
-        context:prompt_text("Entity Name:", "entity_name", {
-            cases   = { Cases.programming(), Cases.fixed("entity_title", Case.Title) },
-            default = M.entity_default(context:get("project-name")),
-            help    = "The sample CRUD entity the generated API exposes. Defaults to the project "
-                .. "name with any trailing type qualifier removed.",
-        })
-    end
-
-    -- Addressing for the optional SCM publish step. Derived, never asked: an archetype that has
-    -- just been told the project and the solution knows both of these.
-    context:set("repo_name", context:get("project-name"))
+    -- Derived, never asked.
     context:set("github_owner", context:get("solution-name"))
+    return context
+end
 
+--- The whole surface, in one call — for archetypes that place no layout of their own.
+---@param opts { entity: boolean? }?
+function M.prompt(context, opts)
+    M.prompt_project(context, opts)
+    M.prompt_solution(context)
     return context
 end
 

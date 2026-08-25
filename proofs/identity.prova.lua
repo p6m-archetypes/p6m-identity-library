@@ -6,12 +6,12 @@
 --- casing rules: it asserts the SHAPES that downstream templates consume.
 ---
 --- A prompt library renders no files, so the contract is observed through a probe archetype
---- (tests/fixtures/probe) that composes the library and writes the derived keys to one YAML file.
+--- (proofs/fixtures/probe) that composes the library and writes the derived keys to one YAML file.
 --- That is the whole reason none of the fleet's other libraries carries a suite — and the reason
 --- this one must: a rule with no direct proof is a rule that drifts, and the oracle in
 --- prova-p6m-standards deliberately re-derives nothing, so there is no second reader to catch it.
 
-local PROBE = "tests/fixtures/probe"
+local PROBE = "proofs/fixtures/probe"
 
 --- The table the rule is written from. Each row exercises a different branch, and the last two are
 --- the ones a naive "split on the last hyphen" gets wrong.
