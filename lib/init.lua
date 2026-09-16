@@ -7,16 +7,19 @@
 -- Contract
 -- ────────
 -- THE single implementation of the p6m identity prompt surface. A p6m service archetype asks for
--- a project name, a solution slug, and (for shapes that generate a CRUD surface) an entity name.
+-- a project name, an organization, and (for shapes that generate a CRUD surface) an entity name.
 -- It does NOT ask for author identity, an org × solution split, or a prefix × suffix
 -- decomposition: nothing the archetypes render reads them, and two of the three were prompts that
 -- existed only to build a third string.
 --
 --   project_name   the repository, the project directory, the container image, the
 --                  PlatformApplication name, the Tilt resource, OTEL_SERVICE_NAME
---   solution_name  the namespace prefix — the platform operator derives solution and environment
---                  back out of `{solution}-{application}-{env}`, which is what lets Shared
---                  resources be shared across a solution
+--   solution_name  the GitHub organization the repository lands in, and the namespace prefix —
+--                  the platform operator derives organization and environment back out of
+--                  `{organization}-{application}-{env}`, which is what lets Shared resources be
+--                  shared across an organization. The KEY keeps its original name because all
+--                  thirty archetypes' templates and the `p6m.identity` oracle read `solution-name`;
+--                  only the wording a user reads changed (YP6M-3798)
 --   entity_name    the sample CRUD entity the generated API exposes; DEFAULTED from project_name
 --
 -- Why this library exists
@@ -76,9 +79,9 @@ end
 ---@param opts { entity: boolean? }?
 --- The project's own names: what it is called and what its sample entity is called.
 ---
---- Split from the solution slug so a caller can place them separately — the project names are
---- the user's to invent, while the solution slug is a deployment coordinate a wizard may supply
---- and hide. Same prompts either way; `prompt` composes all of them.
+--- Split from the organization so a caller can place them separately — the project names are
+--- the user's to invent, while the organization is a deployment coordinate a wizard already knows
+--- and may supply or prefill. Same prompts either way; `prompt` composes all of them.
 ---@param opts { entity: boolean? }?
 function M.prompt_project(context, opts)
     opts = opts or {}
@@ -132,14 +135,18 @@ function M.prompt_project(context, opts)
     return context
 end
 
---- The solution slug — a deployment coordinate, not a name the user invents. Split out so a
---- caller can place it with the other platform facts a wizard may supply and hide.
+--- The organization — the GitHub organization the repository lands in, and a deployment
+--- coordinate rather than a name the user invents. Split out so a caller can place it with the
+--- other platform facts a wizard may supply or prefill.
+---
+--- Named `prompt_solution` still, and setting `solution_name` still: thirty archetypes call this
+--- function and read that key. YP6M-3798 renamed what a user reads, nothing else.
 function M.prompt_solution(context)
-    context:prompt_text("Solution Slug:", "solution_name", {
+    context:prompt_text("Organization:", "solution_name", {
         cases       = { Cases.programming(), Cases.fixed("solution_title", Case.Title) },
         pattern     = "^[A-Za-z][A-Za-z0-9 _-]*$",
-        placeholder = "acme-payments",
-        help        = "Kebab-case. Prefixes the Kubernetes namespace: {solution}-{application}-{env}.",
+        placeholder = "ybor-playground",
+        help        = "Your GitHub organization.",
     })
 
     -- TRANSITIONAL ALIAS (YP6M-3424). `org_solution_name` is what platform-application-manifests-

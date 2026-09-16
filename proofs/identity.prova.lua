@@ -160,6 +160,47 @@ prova.group("identity — the surface as a whole", function(g)
   end)
 end)
 
+-- The prompt WORDING is a user-facing contract, not a comment: Ybor Studio renders a prompt's
+-- message verbatim as the form label and its help verbatim as the field description, so a word
+-- changed here changes what a user reads. Nothing else in this suite observes display text — the
+-- rest is held on rendered output, which is blind to it.
+--
+-- Held on the SCRIPT rather than on a derived interface, for the same reason prova-p6m-standards
+-- holds declaration-shaped bars there (init.lua:1737): prova's `archetect` module exposes `render`
+-- and `verify` only, so a suite cannot read the interface a client receives. `archetect interface
+-- <source> --json` is the out-of-band check when you want to see the envelope itself.
+prova.group("the prompt surface Studio renders", function(g)
+  local SOURCE = prova.root .. "/lib/init.lua"
+
+  g:test("the deployment coordinate is labelled Organization", {
+    proves = "YP6M-3798: the value IS the GitHub organization — `github_owner` is derived from it "
+      .. "below — and Studio already calls that record an Organization everywhere else. 'Solution' "
+      .. "named a concept this fleet retired, and the word is being freed for a different one",
+  }, function(t)
+    local src = fs.read(SOURCE)
+    t:expect_all(function()
+      t:expect(src:find('"Organization:", "solution_name"', 1, true) ~= nil,
+        'the prompt is declared as "Organization:"'):is_true()
+      t:expect(src:find("Solution Slug", 1, true) == nil,
+        "no 'Solution Slug' wording survives in the prompt surface"):is_true()
+    end)
+  end)
+
+  g:test("the help names the GitHub organization and nothing more", {
+    proves = "the namespace derivation `{solution}-{application}-{env}` is a platform-internal "
+      .. "rule the user makes no decision about; it stays documented in this module's header, "
+      .. "where a maintainer needs it, and out of the field description, where it only mystifies",
+  }, function(t)
+    local src = fs.read(SOURCE)
+    t:expect_all(function()
+      t:expect(src:find('help%s+= "Your GitHub organization%."') ~= nil,
+        "the help reads 'Your GitHub organization.'"):is_true()
+      t:expect(src:find("Prefixes the Kubernetes namespace", 1, true) == nil,
+        "the namespace rule is not in the prompt help"):is_true()
+    end)
+  end)
+end)
+
 -- The alias above is scaffolding, and scaffolding that nothing removes becomes architecture. This
 -- reminder is WATCHING while any consumer still reads the old key, and fires DUE the moment none
 -- does — at which point the alias in lib/init.lua, its probe line, and the proof above all go.
