@@ -133,6 +133,8 @@ function M.prompt_project(context, opts)
     return context
 end
 
+local ORGANIZATION_PATTERN = "^[A-Za-z][A-Za-z0-9 _-]*$"
+
 --- The organization — the GitHub organization the repository lands in, and a deployment
 --- coordinate rather than a name the user invents. Split out so a caller can place it with the
 --- other platform facts a wizard may supply or prefill.
@@ -143,13 +145,16 @@ function M.prompt_organization(context)
     -- `solution_name`. An answer is readable by its exact key before anything prompts it, so a
     -- legacy answer is honored here rather than asked for again; `organization_name` wins when
     -- both arrive. Retire with the outbound aliases below.
+    -- Held to the prompt's own pattern: a legacy answer that is not a name (a hybrid client sends ""
+    -- for a field the user tabbed past) falls through to the prompt rather than around it.
     local legacy = context:get("solution_name")
-    if context:get("organization_name") == nil and legacy ~= nil then
+    if context:get("organization_name") == nil and type(legacy) == "string"
+        and legacy:match(ORGANIZATION_PATTERN) then
         context:set("organization_name", legacy, { cases = cases })
     else
         context:prompt_text("Organization:", "organization_name", {
             cases       = cases,
-            pattern     = "^[A-Za-z][A-Za-z0-9 _-]*$",
+            pattern     = ORGANIZATION_PATTERN,
             placeholder = "ybor-playground",
             help        = "Your GitHub organization.",
         })

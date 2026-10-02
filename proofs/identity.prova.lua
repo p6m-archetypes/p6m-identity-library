@@ -181,6 +181,23 @@ prova.group("identity — the surface as a whole", function(g)
     end)
   end)
 
+  g:test("a legacy solution_name answer that is not a name is refused, not used", {
+    proves = "the fallback must not be a way around the prompt's pattern: a hybrid client sends an "
+      .. "empty string for a field the user tabbed past, and an empty organization renders "
+      .. "`-billing-service-dev` in silence. Refusal means the prompt runs, and headless it fails "
+      .. "naming organization_name",
+  }, function(t)
+    for _, bad in ipairs({ "", "-acme" }) do
+      local ok = pcall(archetect.render, {
+        source = PROBE,
+        answers = { project_name = "billing-service", solution_name = bad },
+        destination = t:tempdir("legacy-bad-" .. #bad),
+        defaults = false,
+      })
+      t:expect(ok, "solution_name=" .. string.format("%q", bad) .. " must not render"):is_false()
+    end
+  end)
+
   g:test("organization_name wins when both keys are answered", {
     proves = "a client mid-migration may send both; the new key is the one it meant",
   }, function(t)
