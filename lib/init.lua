@@ -14,12 +14,10 @@
 --
 --   project_name   the repository, the project directory, the container image, the
 --                  PlatformApplication name, the Tilt resource, OTEL_SERVICE_NAME
---   solution_name  the GitHub organization the repository lands in, and the namespace prefix —
---                  the platform operator derives organization and environment back out of
---                  `{organization}-{application}-{env}`, which is what lets Shared resources be
---                  shared across an organization. The KEY keeps its original name because all
---                  thirty archetypes' templates and the `p6m.identity` oracle read `solution-name`;
---                  only the wording a user reads changed (YP6M-3798)
+--   organization_name  the GitHub organization the repository lands in, and the namespace
+--                  prefix — the platform operator derives organization and environment back out
+--                  of `{organization}-{application}-{env}`, which is what lets Shared resources be
+--                  shared across an organization (YP6M-3798)
 --   entity_name    the sample CRUD entity the generated API exposes; DEFAULTED from project_name
 --
 -- Why this library exists
@@ -138,33 +136,47 @@ end
 --- The organization — the GitHub organization the repository lands in, and a deployment
 --- coordinate rather than a name the user invents. Split out so a caller can place it with the
 --- other platform facts a wizard may supply or prefill.
----
---- Named `prompt_solution` still, and setting `solution_name` still: thirty archetypes call this
---- function and read that key. YP6M-3798 renamed what a user reads, nothing else.
-function M.prompt_solution(context)
-    context:prompt_text("Organization:", "solution_name", {
-        cases       = { Cases.programming(), Cases.fixed("solution_title", Case.Title) },
-        pattern     = "^[A-Za-z][A-Za-z0-9 _-]*$",
-        placeholder = "ybor-playground",
-        help        = "Your GitHub organization.",
-    })
+function M.prompt_organization(context)
+    local cases = { Cases.programming(), Cases.fixed("organization_title", Case.Title) }
 
-    -- TRANSITIONAL ALIAS (YP6M-3424). `org_solution_name` is what platform-application-manifests-
-    -- library and the six overlay archetypes read today, and the name describes a decomposition
-    -- this library removes. Retire it — and this line — once those consumers are converted to
-    -- `solution_name`; nothing else in the fleet reads it.
-    context:set("org_solution_name", context:get("solution-name"), { cases = Cases.programming() })
+    -- TRANSITIONAL INPUT (YP6M-3798). Ybor Studio and older answer files supply this value as
+    -- `solution_name`. An answer is readable by its exact key before anything prompts it, so a
+    -- legacy answer is honored here rather than asked for again; `organization_name` wins when
+    -- both arrive. Retire with the outbound aliases below.
+    local legacy = context:get("solution_name")
+    if context:get("organization_name") == nil and legacy ~= nil then
+        context:set("organization_name", legacy, { cases = cases })
+    else
+        context:prompt_text("Organization:", "organization_name", {
+            cases       = cases,
+            pattern     = "^[A-Za-z][A-Za-z0-9 _-]*$",
+            placeholder = "ybor-playground",
+            help        = "Your GitHub organization.",
+        })
+    end
+
+    -- TRANSITIONAL ALIASES (YP6M-3798, YP6M-3424). `solution_name` and `org_solution_name` are
+    -- what archetype tags cut before this rename read. Retire them — and these lines — once no
+    -- consumer reads either; the reminder in proofs/identity.prova.lua fires when that is true.
+    context:set("solution_name", context:get("organization-name"), { cases = Cases.programming() })
+    context:set("org_solution_name", context:get("organization-name"), { cases = Cases.programming() })
 
     -- Derived, never asked.
-    context:set("github_owner", context:get("solution-name"))
+    context:set("github_owner", context:get("organization-name"))
     return context
+end
+
+--- Deprecated name for `prompt_organization`, kept so archetype tags pinned before YP6M-3798
+--- keep rendering. Retire with the transitional aliases.
+function M.prompt_solution(context)
+    return M.prompt_organization(context)
 end
 
 --- The whole surface, in one call — for archetypes that place no layout of their own.
 ---@param opts { entity: boolean? }?
 function M.prompt(context, opts)
     M.prompt_project(context, opts)
-    M.prompt_solution(context)
+    M.prompt_organization(context)
     return context
 end
 

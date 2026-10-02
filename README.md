@@ -13,16 +13,21 @@ identity.prompt(context, { entity = false }) -- shapes that generate no domain c
 | Key | What it becomes |
 |---|---|
 | `project_name` | the repository and project directory, the container image, the `PlatformApplication` name, the Tilt resource, `OTEL_SERVICE_NAME` |
-| `solution_name` | the GitHub organization the repository lands in, and the namespace prefix — the platform operator derives organization and environment back out of `{organization}-{application}-{env}`, which is what lets `Shared` resources be shared across an organization |
+| `organization_name` | the GitHub organization the repository lands in, and the namespace prefix — the platform operator derives organization and environment back out of `{organization}-{application}-{env}`, which is what lets `Shared` resources be shared across an organization |
 | `entity_name` | the sample CRUD entity the generated API exposes; **defaulted** from `project_name` |
 
 Each is expanded through `Cases.programming()` plus a Title variant, so templates say
 `{{ ProjectName }}`, `{{ entity-name }}`, `{{ project_title }}` without reformatting anything by
 hand. `repo_name` and `github_owner` are derived, never asked.
 
-`solution_name` is prompted as **Organization** — it is the GitHub organization, and Studio calls
-that record an Organization everywhere else. The key keeps its original name because every
-archetype template and the `p6m.identity` oracle read `solution-name`; only the wording changed.
+`organization_name` is prompted as **Organization** — it is the GitHub organization, and Studio
+calls that record an Organization everywhere else.
+
+**Transition (YP6M-3798).** The key was `solution_name` until YP6M-3798. While the fleet moves
+over, the library still accepts a supplied `solution_name` answer (`organization_name` wins when
+both are given), still sets `solution_name` and `org_solution_name` as aliases of the
+organization, and keeps `prompt_solution` as a deprecated name for `prompt_organization`. A
+reminder in `proofs/identity.prova.lua` fires once nothing in the workspace reads the old keys.
 
 ## What it deliberately does not ask
 

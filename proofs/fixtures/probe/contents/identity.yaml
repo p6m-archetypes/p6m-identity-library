@@ -5,8 +5,8 @@ projectName:    "{{ projectName }}"
 PROJECT_NAME:   "{{ PROJECT_NAME }}"
 project_title:  "{{ project_title }}"
 
-solution-name:  "{{ solution-name }}"
-solution_title: "{{ solution_title }}"
+organization-name:  "{{ organization-name }}"
+organization_title: "{{ organization_title }}"
 
 entity-name:    "{{ entity-name }}"
 entity_name:    "{{ entity_name }}"
@@ -17,7 +17,8 @@ entity_title:   "{{ entity_title }}"
 repo_name:      "{{ repo_name }}"
 github_owner:   "{{ github_owner }}"
 
-# The transitional alias (YP6M-3424) — retire with the line in lib/init.lua that sets it.
+# The transitional aliases (YP6M-3798, YP6M-3424) — retire with the lines in lib/init.lua that set them.
+solution-name:     "{{ solution-name }}"
 org-solution-name: "{{ org-solution-name }}"
 
 # The API surface standards S2 derives from this identity. Rendered here so the suite reads the

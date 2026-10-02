@@ -53,7 +53,7 @@ local SHAPES = {
   },
 }
 
-local SOLUTION = "acme-payments"
+local ORGANIZATION = "acme-payments"
 
 --- Render the probe with `entity_name` UNANSWERED, so what lands is the library's default. An
 --- answered entity would prove nothing about the derivation — it would prove archetect stores
@@ -67,7 +67,7 @@ local SOLUTION = "acme-payments"
 local function derived(ctx, project)
   local out = archetect.render{
     source = PROBE,
-    answers = { project_name = project, solution_name = SOLUTION },
+    answers = { project_name = project, organization_name = ORGANIZATION },
     destination = ctx:tempdir(project),
     defaults = true,
   }
@@ -128,7 +128,7 @@ prova.group("identity — the surface as a whole", function(g)
   }, function(t)
     local out = archetect.render{
       source = PROBE,
-      answers = { project_name = "billing-service", solution_name = SOLUTION,
+      answers = { project_name = "billing-service", organization_name = ORGANIZATION,
                   entity_name = "invoice" },
       destination = t:tempdir("answered-entity"),
       defaults = true,
@@ -144,19 +144,66 @@ prova.group("identity — the surface as a whole", function(g)
   end)
 
   g:test("SCM addressing is derived, never asked", {
-    proves = "an archetype told the project and the solution knows both of these; asking again "
+    proves = "an archetype told the project and the organization knows both of these; asking again "
       .. "is a prompt whose answer nothing new reads (standards E2)",
   }, function(t)
     local d = t:use(id)
     t:expect(d.repo_name, "repo_name"):equals("billing-service")
-    t:expect(d.github_owner, "github_owner"):equals(SOLUTION)
+    t:expect(d.github_owner, "github_owner"):equals(ORGANIZATION)
   end)
 
-  g:test("the transitional org_solution_name alias still answers its consumers", {
-    proves = "platform-application-manifests-library and the six overlays read `org-solution-name` "
-      .. "today; the alias keeps them rendering while the rename lands repo by repo",
+  g:test("the organization is answered as organization_name, in every casing", {
+    proves = "YP6M-3798: the key names what the value is — the GitHub organization — so templates "
+      .. "read `{{ organization-name }}` and an answer file says `organization_name`",
   }, function(t)
-    t:expect(t:use(id)["org-solution-name"], "org-solution-name alias"):equals(SOLUTION)
+    local d = t:use(id)
+    t:expect_all(function()
+      t:expect(d["organization-name"], "organization-name"):equals(ORGANIZATION)
+      t:expect(d.organization_title, "organization_title"):equals("Acme Payments")
+    end)
+  end)
+
+  g:test("a legacy solution_name answer still resolves the organization", {
+    proves = "Ybor Studio and older answer files supply the organization as `solution_name`; until "
+      .. "they move, that answer must land as the organization rather than be asked for again",
+  }, function(t)
+    local out = archetect.render{
+      source = PROBE,
+      answers = { project_name = "billing-service", solution_name = "legacy-org" },
+      destination = t:tempdir("legacy-answer"),
+      defaults = true,
+    }
+    local d = yaml.decode(fs.read(out.path .. "/identity.yaml"))
+    t:expect_all(function()
+      t:expect(d["organization-name"], "organization-name"):equals("legacy-org")
+      t:expect(d.organization_title, "organization_title"):equals("Legacy Org")
+      t:expect(d.github_owner, "github_owner"):equals("legacy-org")
+    end)
+  end)
+
+  g:test("organization_name wins when both keys are answered", {
+    proves = "a client mid-migration may send both; the new key is the one it meant",
+  }, function(t)
+    local out = archetect.render{
+      source = PROBE,
+      answers = { project_name = "billing-service", solution_name = "legacy-org",
+                  organization_name = ORGANIZATION },
+      destination = t:tempdir("both-answers"),
+      defaults = true,
+    }
+    local d = yaml.decode(fs.read(out.path .. "/identity.yaml"))
+    t:expect(d["organization-name"], "organization-name"):equals(ORGANIZATION)
+  end)
+
+  g:test("the transitional solution aliases still answer their consumers", {
+    proves = "archetype tags cut before YP6M-3798 read `solution-name` or `org-solution-name`; the "
+      .. "aliases keep them rendering while the rename lands repo by repo",
+  }, function(t)
+    local d = t:use(id)
+    t:expect_all(function()
+      t:expect(d["solution-name"], "solution-name alias"):equals(ORGANIZATION)
+      t:expect(d["org-solution-name"], "org-solution-name alias"):equals(ORGANIZATION)
+    end)
   end)
 end)
 
@@ -171,6 +218,9 @@ end)
 -- <source> --json` is the out-of-band check when you want to see the envelope itself.
 prova.group("the prompt surface Studio renders", function(g)
   local SOURCE = prova.root .. "/lib/init.lua"
+  -- The platform-manifests library prompts for the organization itself when rendered standalone,
+  -- so its wording is the same contract. Read when the workspace has it; this repo stands alone.
+  local PAM = prova.root .. "/../platform-application-manifests-library/lib/init.lua"
 
   g:test("the deployment coordinate is labelled Organization", {
     proves = "YP6M-3798: the value IS the GitHub organization — `github_owner` is derived from it "
@@ -179,15 +229,22 @@ prova.group("the prompt surface Studio renders", function(g)
   }, function(t)
     local src = fs.read(SOURCE)
     t:expect_all(function()
-      t:expect(src:find('"Organization:", "solution_name"', 1, true) ~= nil,
-        'the prompt is declared as "Organization:"'):is_true()
-      t:expect(src:find("Solution Slug", 1, true) == nil,
-        "no 'Solution Slug' wording survives in the prompt surface"):is_true()
+      t:expect(src:find('"Organization:", "organization_name"', 1, true) ~= nil,
+        'the prompt is declared as "Organization:" on organization_name'):is_true()
+      t:expect(src:lower():find("solution slug", 1, true) == nil,
+        "no 'solution slug' wording survives in the prompt surface"):is_true()
+      if fs.exists(PAM) then
+        local pam = fs.read(PAM):lower()
+        t:expect(pam:find("solution slug", 1, true) == nil,
+          "no 'solution slug' wording survives in platform-application-manifests-library"):is_true()
+        t:expect(pam:find("org / solution", 1, true) == nil,
+          "no 'Org / Solution' prompt survives in platform-application-manifests-library"):is_true()
+      end
     end)
   end)
 
   g:test("the help names the GitHub organization and nothing more", {
-    proves = "the namespace derivation `{solution}-{application}-{env}` is a platform-internal "
+    proves = "the namespace derivation `{organization}-{application}-{env}` is a platform-internal "
       .. "rule the user makes no decision about; it stays documented in this module's header, "
       .. "where a maintainer needs it, and out of the field description, where it only mystifies",
   }, function(t)
@@ -201,28 +258,38 @@ prova.group("the prompt surface Studio renders", function(g)
   end)
 end)
 
--- The alias above is scaffolding, and scaffolding that nothing removes becomes architecture. This
--- reminder is WATCHING while any consumer still reads the old key, and fires DUE the moment none
--- does — at which point the alias in lib/init.lua, its probe line, and the proof above all go.
-prova.remind("the org_solution_name alias has outlived its consumers", {
+-- The aliases above are scaffolding, and scaffolding that nothing removes becomes architecture.
+-- Two reminders, because the two halves retire on different clocks.
+--
+-- OUTBOUND: `solution_name` / `org_solution_name` set for templates, and `prompt_solution`. WATCHING
+-- while any repo that mounts this library still reads one; DUE once none does (and its PR is merged
+-- and `v1` moved — this reads the workspace, so a local branch can run ahead of the fleet).
+prova.remind("the outbound solution aliases have outlived their consumers", {
   when = function()
     local fleet = prova.root .. "/.."
-    local consumers = {}
-    for _, repo in ipairs({
-      "platform-application-manifests-library",
-      "dotnet-service-empty-archetype", "golang-service-empty-archetype",
-      "java-service-empty-archetype", "python-service-empty-archetype",
-      "rust-service-empty-archetype", "typescript-service-empty-archetype",
-    }) do
-      local dir = fleet .. "/" .. repo
-      if fs.exists(dir) then
-        local hit = shell.run("grep -rIl org.solution.name " .. dir .. " --exclude-dir=.git",
-          { merge_stderr = true })
-        if hit.code == 0 then consumers[#consumers + 1] = repo end
-      end
+    local mounts = shell.run("grep -l p6m-identity-library " .. fleet .. "/*/archetype.yaml",
+      { merge_stderr = true })
+    if mounts.code ~= 0 then return false end
+    for manifest in mounts.stdout:gmatch("[^\n]+") do
+      local dir = manifest:gsub("/archetype%.yaml$", "")
+      local hit = shell.run("grep -rIlE 'solution[-_]name|prompt_solution' " .. dir
+        .. " --exclude-dir=.git --exclude-dir=.prova", { merge_stderr = true })
+      if hit.code == 0 then return false end
     end
-    return #consumers == 0
-      and "no repo in this workspace reads org-solution-name any more — the alias is dead weight"
+    return "no archetype mounting p6m-identity reads solution-name or calls prompt_solution any more"
   end,
-}, "YP6M-3424: drop the org_solution_name alias from lib/init.lua, its line in the probe's "
-   .. "identity.yaml, and the proof that covers it.")
+}, "YP6M-3798: drop the solution_name/org_solution_name aliases and prompt_solution from "
+   .. "lib/init.lua, their lines in the probe's identity.yaml, and the alias proof.")
+
+-- INBOUND: the legacy `solution_name` ANSWER. Ybor Studio seeds it (catalog-seeds.ts,
+-- retrofit-archetypes.ts), so the fallback stays until Studio sends `organization_name`. Evaluated
+-- only when a Studio checkout sits beside this workspace; elsewhere it stays quiet.
+prova.remind("Ybor Studio no longer sends solution_name", {
+  when = function()
+    local studio = prova.root .. "/../../ybor-studio/ybor-studio-frontend/apps/studio/src/lib"
+    if not fs.exists(studio) then return false end
+    local hit = shell.run("grep -rlE \"'solution_name'\" " .. studio, { merge_stderr = true })
+    return hit.code ~= 0 and "Studio's seeds answer organization_name; nothing sends solution_name"
+  end,
+}, "YP6M-3798: drop the legacy solution_name answer fallback from lib/init.lua and the two "
+   .. "legacy-answer proofs.")
