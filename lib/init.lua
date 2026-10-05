@@ -7,16 +7,17 @@
 -- Contract
 -- ────────
 -- THE single implementation of the p6m identity prompt surface. A p6m service archetype asks for
--- a project name, a solution slug, and (for shapes that generate a CRUD surface) an entity name.
+-- a project name, an organization, and (for shapes that generate a CRUD surface) an entity name.
 -- It does NOT ask for author identity, an org × solution split, or a prefix × suffix
 -- decomposition: nothing the archetypes render reads them, and two of the three were prompts that
 -- existed only to build a third string.
 --
 --   project_name   the repository, the project directory, the container image, the
 --                  PlatformApplication name, the Tilt resource, OTEL_SERVICE_NAME
---   solution_name  the namespace prefix — the platform operator derives solution and environment
---                  back out of `{solution}-{application}-{env}`, which is what lets Shared
---                  resources be shared across a solution
+--   organization_name  the GitHub organization the repository lands in, and the namespace
+--                  prefix — the platform operator derives organization and environment back out
+--                  of `{organization}-{application}-{env}`, which is what lets Shared resources be
+--                  shared across an organization (YP6M-3798)
 --   entity_name    the sample CRUD entity the generated API exposes; DEFAULTED from project_name
 --
 -- Why this library exists
@@ -76,9 +77,9 @@ end
 ---@param opts { entity: boolean? }?
 --- The project's own names: what it is called and what its sample entity is called.
 ---
---- Split from the solution slug so a caller can place them separately — the project names are
---- the user's to invent, while the solution slug is a deployment coordinate a wizard may supply
---- and hide. Same prompts either way; `prompt` composes all of them.
+--- Split from the organization so a caller can place them separately — the project names are
+--- the user's to invent, while the organization is a deployment coordinate a wizard already knows
+--- and may supply or prefill. Same prompts either way; `prompt` composes all of them.
 ---@param opts { entity: boolean? }?
 function M.prompt_project(context, opts)
     opts = opts or {}
@@ -132,32 +133,55 @@ function M.prompt_project(context, opts)
     return context
 end
 
---- The solution slug — a deployment coordinate, not a name the user invents. Split out so a
---- caller can place it with the other platform facts a wizard may supply and hide.
-function M.prompt_solution(context)
-    context:prompt_text("Solution Slug:", "solution_name", {
-        cases       = { Cases.programming(), Cases.fixed("solution_title", Case.Title) },
-        pattern     = "^[A-Za-z][A-Za-z0-9 _-]*$",
-        placeholder = "acme-payments",
-        help        = "Kebab-case. Prefixes the Kubernetes namespace: {solution}-{application}-{env}.",
-    })
+local ORGANIZATION_PATTERN = "^[A-Za-z][A-Za-z0-9 _-]*$"
 
-    -- TRANSITIONAL ALIAS (YP6M-3424). `org_solution_name` is what platform-application-manifests-
-    -- library and the six overlay archetypes read today, and the name describes a decomposition
-    -- this library removes. Retire it — and this line — once those consumers are converted to
-    -- `solution_name`; nothing else in the fleet reads it.
-    context:set("org_solution_name", context:get("solution-name"), { cases = Cases.programming() })
+--- The organization — the GitHub organization the repository lands in, and a deployment
+--- coordinate rather than a name the user invents. Split out so a caller can place it with the
+--- other platform facts a wizard may supply or prefill.
+function M.prompt_organization(context)
+    local cases = { Cases.programming(), Cases.fixed("organization_title", Case.Title) }
+
+    -- TRANSITIONAL INPUT (YP6M-3798). Ybor Studio and older answer files supply this value as
+    -- `solution_name`. An answer is readable by its exact key before anything prompts it, so a
+    -- legacy answer is honored here rather than asked for again; `organization_name` wins when
+    -- both arrive. Retire with the outbound aliases below.
+    -- Held to the prompt's own pattern: a legacy answer that is not a name (a hybrid client sends ""
+    -- for a field the user tabbed past) falls through to the prompt rather than around it.
+    local legacy = context:get("solution_name")
+    if context:get("organization_name") == nil and type(legacy) == "string"
+        and legacy:match(ORGANIZATION_PATTERN) then
+        context:set("organization_name", legacy, { cases = cases })
+    else
+        context:prompt_text("Organization:", "organization_name", {
+            cases       = cases,
+            pattern     = ORGANIZATION_PATTERN,
+            placeholder = "ybor-playground",
+            help        = "Your GitHub organization.",
+        })
+    end
+
+    -- TRANSITIONAL ALIASES (YP6M-3798, YP6M-3424). `solution_name` and `org_solution_name` are
+    -- what archetype tags cut before this rename read. Retire them — and these lines — once no
+    -- consumer reads either; the reminder in proofs/identity.prova.lua fires when that is true.
+    context:set("solution_name", context:get("organization-name"), { cases = Cases.programming() })
+    context:set("org_solution_name", context:get("organization-name"), { cases = Cases.programming() })
 
     -- Derived, never asked.
-    context:set("github_owner", context:get("solution-name"))
+    context:set("github_owner", context:get("organization-name"))
     return context
+end
+
+--- Deprecated name for `prompt_organization`, kept so archetype tags pinned before YP6M-3798
+--- keep rendering. Retire with the transitional aliases.
+function M.prompt_solution(context)
+    return M.prompt_organization(context)
 end
 
 --- The whole surface, in one call — for archetypes that place no layout of their own.
 ---@param opts { entity: boolean? }?
 function M.prompt(context, opts)
     M.prompt_project(context, opts)
-    M.prompt_solution(context)
+    M.prompt_organization(context)
     return context
 end
 
